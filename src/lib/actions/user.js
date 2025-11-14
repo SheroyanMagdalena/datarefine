@@ -1,48 +1,37 @@
-import User from '../models/user.model';
+import User from "../models/user.model";
+import { connect } from "../mongodb/mongoose";
 
-import { connect } from '../mongodb/mongoose';
-
-export const createOrUpdateUser = async (
+export async function createOrUpdateUser(
   id,
   first_name,
   last_name,
   image_url,
   email_addresses,
   username
-) => {
-  try {
-    await connect();
+) {
+  await connect();
 
-    const primaryEmail = email_addresses?.[0]?.email_address || "";
+  const email = email_addresses?.[0]?.email_address || "";
+  console.log("🔥 createOrUpdateUser CALLED");
+  console.log("🔥 MONGODB_URI =", process.env.MONGODB_URI);
 
-    const user = await User.findOneAndUpdate(
-      { clerkId: id },
-      {
-        $set: {
-          clerkId: id,                          
-          firstName: first_name,
-          lastName: last_name,
-          avatar: image_url,
-          email: primaryEmail,                  
-          username: username || "",
-        },
-      },
-      { new: true, upsert: true }
-    );
+  return User.findOneAndUpdate(
+    { clerkId: id },
+    {
+      clerkId: id,
+      firstName: first_name,
+      lastName: last_name,
+      avatar: image_url,
+      email,
+      username,
+    },
+    { new: true, upsert: true }
+  );
 
-    return user;
-  } catch (error) {
-    console.error("Error creating or updating user:", error);
-  }
-};
+  
+}
 
-
-export const deleteUser = async (id) => {
-  try {
-    await connect();
-
-    await User.findOneAndDelete({ clerkId: id });
-  } catch (error) {
-    console.log('Error deleting user:', error);
-  }
-};
+export async function deleteUser(id) {
+  await connect();
+  return User.findOneAndDelete({ clerkId: id });
+}

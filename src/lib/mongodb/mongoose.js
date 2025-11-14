@@ -12,13 +12,14 @@ export const connect = async () => {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: 'next-auth-app',
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      dbName: 'datarefine',  // Your actual DB name
     });
+
     console.log('MongoDB connected');
     initialized = true;
+
   } catch (error) {
     console.log('MongoDB connection error:', error);
+    throw error;
   }
 };
