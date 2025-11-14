@@ -5,28 +5,66 @@ import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 export default function Header() {
   return (
-    <header style={sx.header}>
-      <div style={sx.container}>
+    <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+
         {/* Brand */}
-        <Link href="/" style={sx.brand} aria-label="Data Refine Home">
-          <span style={sx.brandLeft}>Data</span>
-          <span style={sx.brandRight}>Refine</span>
+        <Link
+          href="/"
+          aria-label="DataRefine Home"
+          className="inline-flex items-baseline gap-1.5 select-none"
+        >
+          <span className="text-xl font-extrabold bg-gradient-to-r from-sky-400 to-sky-300 bg-clip-text text-transparent tracking-tight">
+            Data
+          </span>
+          <span className="text-xl font-semibold bg-gradient-to-r from-sky-300 to-indigo-200 bg-clip-text text-transparent tracking-tight">
+            Refine
+          </span>
         </Link>
 
         {/* Nav */}
-        <nav style={sx.nav}>
-          <Link href="/" style={sx.link}>Home</Link>
-          <Link href="/about" style={sx.link}>About</Link>
+        <nav className="flex items-center gap-4 sm:gap-6 text-sm">
+          <Link
+            href="/"
+            className="text-slate-200/90 hover:text-sky-400 transition-colors"
+          >
+            Home
+          </Link>
 
+          <Link
+            href="/about"
+            className="text-slate-200/90 hover:text-sky-400 transition-colors hidden sm:inline-block"
+          >
+            About
+          </Link>
+
+          {/* Show "Projects" only if user is signed in */}
           <SignedIn>
-            <div style={{ marginLeft: 8 }}>
-              <UserButton appearance={{ variables: { colorPrimary: "#3b82f6" } }} />
+            <Link
+              href="/project"
+              className="text-slate-200/90 hover:text-sky-400 transition-colors"
+            >
+              Projects
+            </Link>
+          </SignedIn>
+
+          {/* User menu */}
+          <SignedIn>
+            <div className="ml-2">
+              <UserButton
+                appearance={{
+                  variables: { colorPrimary: "#38bdf8" },
+                }}
+              />
             </div>
           </SignedIn>
 
+          {/* Sign in button for logged-out users */}
           <SignedOut>
             <SignInButton mode="modal">
-              <button style={sx.signIn}>Sign In</button>
+              <button className="ml-1 rounded-xl border border-slate-600/70 bg-gradient-to-r from-sky-500 to-blue-500 px-4 py-1.5 text-xs sm:text-sm font-medium text-white shadow-md shadow-sky-500/30 hover:from-sky-400 hover:to-blue-500 transition">
+                Sign In
+              </button>
             </SignInButton>
           </SignedOut>
         </nav>
@@ -34,70 +72,3 @@ export default function Header() {
     </header>
   );
 }
-
-const sx = {
-  header: {
-    position: "sticky",
-    top: 0,
-    zIndex: 50,
-    background: "linear-gradient(135deg, #0a192f 0%, #112240 60%, #1e3a8a 100%)",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
-  },
-  container: {
-    maxWidth: 1200,
-    margin: "0 auto",
-    padding: "12px 24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 64,
-  },
-  brand: {
-    display: "inline-flex",
-    alignItems: "baseline",
-    gap: 6,
-    textDecoration: "none",
-    userSelect: "none",
-  },
-  brandLeft: {
-    fontSize: "1.35rem",
-    fontWeight: 800,
-    background: "linear-gradient(90deg, #60a5fa, #93c5fd)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    letterSpacing: 0.2,
-  },
-  brandRight: {
-    fontSize: "1.35rem",
-    fontWeight: 700,
-    background: "linear-gradient(90deg, #93c5fd, #e0f2fe)",
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    color: "transparent",
-    letterSpacing: 0.2,
-  },
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: 20,
-  },
-  link: {
-    color: "rgba(226,232,240,0.92)",
-    textDecoration: "none",
-    fontWeight: 500,
-    fontSize: "0.98rem",
-    padding: "6px 0",
-  },
-  signIn: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.15)",
-    background: "linear-gradient(135deg, #1e40af, #2563eb)",
-    color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer",
-    boxShadow: "0 6px 18px rgba(37,99,235,0.3)",
-  },
-};
