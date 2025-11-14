@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 
 export default function Home() {
   return (
@@ -24,12 +25,13 @@ export default function Home() {
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium bg-sky-500 hover:bg-sky-400 transition shadow-lg shadow-sky-500/25">
-                Start refining a dataset
-              </button>
-              <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium border border-slate-600/70 hover:border-slate-400/90 bg-slate-900/50">
-                Explore how DataRefine works
-              </button>
+              
+              <Link href="/project">
+                <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium bg-sky-500 hover:bg-sky-400 transition shadow-lg shadow-sky-500/25">
+              
+                  Start refining a dataset
+                </button>
+              </Link>
             </div>
 
             <p className="mt-4 text-xs text-slate-400 max-w-md">
@@ -204,9 +206,11 @@ export default function Home() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium bg-sky-500 hover:bg-sky-400 transition shadow-lg shadow-sky-500/25">
-              Try DataRefine on a sample dataset
-            </button>
+            <Link href="/sign-in">
+              <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium bg-sky-500 hover:bg-sky-400 transition shadow-lg shadow-sky-500/25">
+                Try DataRefine on a sample dataset
+              </button>
+            </Link>
             <button className="inline-flex justify-center rounded-xl px-6 py-3 text-sm font-medium border border-slate-600/70 hover:border-slate-400/90 bg-slate-900/60">
               View a sample data quality report
             </button>

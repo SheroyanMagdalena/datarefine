@@ -13,7 +13,7 @@ const recentProjects = [
   },
   {
     id: "2",
-    name: "Sales transactions – EMEA",
+    name: "Sales transactions – EMMA",
     source: "Excel · 12 sheets",
     status: "Ready for export",
     updatedAt: "Yesterday",
