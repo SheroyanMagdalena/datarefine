@@ -12,7 +12,7 @@ export const connect = async () => {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: 'datarefine',  // Your actual DB name
+      dbName: 'datarefine', 
     });
 
     console.log('MongoDB connected');
