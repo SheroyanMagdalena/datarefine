@@ -41,3 +41,22 @@ yarn-error.log*
 next-env.d.ts
 
 .vscode/*
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env_venv/
+virtualenv/
+.env/
+.venv/
+ENV/
+env/
+
+# VSCode settings (optional)
+.vscode/
