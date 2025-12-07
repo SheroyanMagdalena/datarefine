@@ -9,12 +9,12 @@ export default function NewProject() {
   const [file, setFile] = useState<File | null>(null);
   const [targetColumn, setTargetColumn] = useState("");
 
-  // --- Python-aligned choices ---
+  // Python-aligned choices
   const [algorithm, setAlgorithm] = useState("random_forest"); // modeling template
   const [scaler, setScaler] = useState<string>("standard");    // scaling template
   const [encoder, setEncoder] = useState<string>("onehot");    // encoding template
 
-  // Simple toggles for EDA (map to template names under templates/eda)
+  // EDA toggles -> templates/eda/<name>.py
   const [enableShowHead, setEnableShowHead] = useState(true);              // "head"
   const [enableDescribe, setEnableDescribe] = useState(true);              // "summary_stats"
   const [enableShowShape, setEnableShowShape] = useState(true);            // "shape"
@@ -22,7 +22,7 @@ export default function NewProject() {
   const [enableFeatureTypes, setEnableFeatureTypes] = useState(true);      // "numerical_vs_categorical"
   const [enableTypeCorrection, setEnableTypeCorrection] = useState(true);  // "convert_objects"
 
-  // Cleaning options mapped directly to template names under templates/cleaning
+  // Cleaning options -> templates/cleaning/<key>.py
   const [selectedCleaningOptions, setSelectedCleaningOptions] = useState<string[]>([]);
 
   const cleaningOptions = [
@@ -39,7 +39,13 @@ export default function NewProject() {
     );
   };
 
-  // --- Live progress logic (same idea as before) ---
+  // Backend response preview
+  const [preview, setPreview] = useState<any[] | null>(null);
+  const [columns, setColumns] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- Progress logic ---
   let currentStep = 1;
   if ((projectName || fileSelected) && !(projectName && fileSelected)) {
     currentStep = 1;
@@ -53,14 +59,36 @@ export default function NewProject() {
   const progressPercent = (currentStep / 3) * 100;
   const isStepActive = (step: number) => currentStep >= step;
 
-  // --- Build userJson and send FormData to /api/pipeline ---
+  // --- Call /api/pipeline which proxies to FastAPI /build-pipeline ---
   const handleSave = async () => {
+    setError(null);
+    setPreview(null);
+    setColumns(null);
+
     if (!file) {
-      console.error("No file selected");
+      setError("Please upload a file first.");
       return;
     }
 
-    // 1) Build EDA list (templates/eda/<name>.py)
+    if (!projectName) {
+      setError("Please give your project a name.");
+      return;
+    }
+
+    // Map UI dataFormat -> file_type for Python (builder.py)
+    // Supported by backend: "csv", "xls", "xlsx"
+    let fileType: string;
+    if (dataFormat === "csv") {
+      fileType = "csv";
+    } else if (dataFormat === "excel") {
+      fileType = "xlsx";
+    } else {
+      // JSON is not supported by backend yet
+      setError("JSON files are not supported yet. Please use CSV or Excel.");
+      return;
+    }
+
+    // 1) Build EDA list
     const eda: string[] = [];
     if (enableShowHead) eda.push("head");
     if (enableShowShape) eda.push("shape");
@@ -69,16 +97,16 @@ export default function NewProject() {
     if (enableFeatureTypes) eda.push("numerical_vs_categorical");
     if (enableTypeCorrection) eda.push("convert_objects");
 
-    // 2) Cleaning list (already in template name form)
+    // 2) Cleaning list (already template names)
     const cleaning: string[] = [...selectedCleaningOptions];
 
-    // 3) Encoding (single-choice → array of one or empty)
+    // 3) Encoding (single-choice -> array of one or empty)
     const encoding: string[] = encoder ? [encoder] : [];
 
-    // 4) Scaling (single-choice → array of one or empty)
+    // 4) Scaling (single-choice -> array of one or empty)
     const scaling: string[] = scaler ? [scaler] : [];
 
-    // 5) Modeling (single-choice → array of one or empty)
+    // 5) Modeling (single-choice -> array of one or empty)
     const modeling: string[] = algorithm ? [algorithm] : [];
 
     const userJson = {
@@ -91,37 +119,47 @@ export default function NewProject() {
 
     console.log("🔧 userJson for build_pipeline:", userJson);
 
-    // Map UI dataFormat -> file_type for Python
-    let fileType = "csv";
-    if (dataFormat === "excel") fileType = "xlsx";
-    else if (dataFormat === "json") {
-      // until you add JSON support in Python, keep as csv or adjust backend
-      fileType = "csv";
-    }
-
     try {
+      setLoading(true);
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("config", JSON.stringify(userJson));
-      formData.append("file_type", fileType);
-      formData.append("target", targetColumn || "");
+      formData.append("file_type", fileType);         // matches main.py Form("csv")
+      formData.append("target", targetColumn || "");  // Optional[str] in backend
 
       const res = await fetch("/api/pipeline", {
         method: "POST",
-        body: formData, // NO headers, browser sets multipart boundary
+        body: formData,
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        console.error("Failed to run pipeline:", err || res.statusText);
+        // Try to decode JSON error from backend
+        let message = `Pipeline request failed with status ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) {
+            message = `${errBody.error}${
+              errBody.detail ? `: ${errBody.detail}` : ""
+            }`;
+          }
+        } catch {
+          // ignore JSON parse error
+        }
+        setError(message);
         return;
       }
 
       const data = await res.json();
-      console.log("✅ Pipeline result from Python:", data); // { preview, columns }
-      // later: set state for preview table / navigate to results page
-    } catch (e) {
+      console.log("✅ Pipeline result from Python:", data);
+
+      setPreview(data.preview || []);
+      setColumns(data.columns || []);
+    } catch (e: any) {
       console.error(e);
+      setError(e?.message || "Unexpected error while running pipeline.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -171,12 +209,20 @@ export default function NewProject() {
                 </label>
                 <select
                   value={dataFormat}
-                  onChange={(e) => setDataFormat(e.target.value)}
+                  onChange={(e) => {
+                    setDataFormat(e.target.value);
+                    setError(null);
+                    setPreview(null);
+                    setColumns(null);
+                  }}
                   className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-400"
                 >
                   <option value="csv">CSV</option>
                   <option value="excel">Excel (.xlsx, .xls)</option>
-                  <option value="json">JSON</option>
+                  {/* JSON disabled until backend supports it */}
+                  <option value="json" disabled>
+                    JSON (coming soon)
+                  </option>
                 </select>
               </div>
 
@@ -190,14 +236,15 @@ export default function NewProject() {
                   accept={
                     dataFormat === "csv"
                       ? ".csv"
-                      : dataFormat === "excel"
-                      ? ".xlsx,.xls"
-                      : ".json"
+                      : ".xlsx,.xls"
                   }
                   onChange={(e) => {
                     const f = e.target.files?.[0] || null;
                     setFile(f);
                     setFileSelected(!!f);
+                    setError(null);
+                    setPreview(null);
+                    setColumns(null);
                   }}
                 />
               </div>
@@ -234,8 +281,8 @@ export default function NewProject() {
             </div>
 
             <p className="text-[0.7rem] text-slate-500">
-              Supported formats: CSV, Excel, JSON. Large files will be processed in
-              chunks to keep the UI responsive.
+              Supported formats: CSV, Excel (.xls, .xlsx). JSON support will be
+              added once the Python backend supports it.
             </p>
           </div>
 
@@ -271,7 +318,7 @@ export default function NewProject() {
                 <div>
                   <p className="font-medium">Describe & upload your dataset</p>
                   <p className="text-xs text-slate-400">
-                    Add a project name and upload a CSV, Excel, or JSON file so
+                    Add a project name and upload a CSV or Excel file so
                     DataRefine can read its structure.
                   </p>
                 </div>
@@ -321,6 +368,13 @@ export default function NewProject() {
             </ol>
           </div>
         </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="border border-red-500/50 bg-red-500/10 text-red-200 text-sm rounded-xl px-4 py-3">
+            {error}
+          </div>
+        )}
 
         {/* EDA & feature analysis quick toggles */}
         <div className="border border-slate-800/80 rounded-2xl bg-slate-950/80 px-5 py-6 space-y-4">
@@ -456,12 +510,65 @@ export default function NewProject() {
             <button
               type="button"
               onClick={handleSave}
-              className="inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-400 px-5 py-2 text-sm font-medium text-white shadow-md shadow-sky-500/30 transition"
+              disabled={loading || !file || !projectName}
+              className={`inline-flex items-center justify-center rounded-xl px-5 py-2 text-sm font-medium text-white shadow-md shadow-sky-500/30 transition
+                ${
+                  loading || !file || !projectName
+                    ? "bg-slate-600 cursor-not-allowed"
+                    : "bg-sky-500 hover:bg-sky-400"
+                }`}
             >
-              Save project & generate pipeline
+              {loading ? "Running pipeline..." : "Save project & generate pipeline"}
             </button>
           </div>
         </div>
+
+        {/* Preview table from Python backend */}
+        {columns && preview && preview.length > 0 && (
+          <div className="border border-slate-800/80 rounded-2xl bg-slate-950/80 px-5 py-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm md:text-base font-semibold text-sky-300/80">
+                Preview (first {preview.length} rows after pipeline)
+              </h2>
+              <p className="text-[0.7rem] text-slate-500">
+                DataRefine preview returned from Python backend.
+              </p>
+            </div>
+
+            <div className="max-h-[420px] overflow-auto border border-slate-800/80 rounded-xl">
+              <table className="min-w-full text-xs md:text-sm border-collapse">
+                <thead className="bg-slate-900/90">
+                  <tr>
+                    {columns.map((col) => (
+                      <th
+                        key={col}
+                        className="px-3 py-2 border-b border-slate-800 text-left font-medium text-slate-200 sticky top-0 bg-slate-900/95"
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.map((row, i) => (
+                    <tr key={i} className="odd:bg-slate-950 even:bg-slate-900/40">
+                      {columns.map((col) => (
+                        <td
+                          key={col}
+                          className="px-3 py-1.5 border-b border-slate-900/60 text-slate-100"
+                        >
+                          {row[col] !== null && row[col] !== undefined
+                            ? String(row[col])
+                            : ""}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );
