@@ -4,33 +4,38 @@ import React, { useState } from "react";
 
 export default function NewProject() {
   const [dataFormat, setDataFormat] = useState("csv");
-  const [selectedCleaningOptions, setSelectedCleaningOptions] = useState<string[]>([]);
   const [projectName, setProjectName] = useState("");
   const [fileSelected, setFileSelected] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [targetColumn, setTargetColumn] = useState("");
-  const [algorithm, setAlgorithm] = useState("RandomForestClassifier");
-  const [scaler, setScaler] = useState<string>("StandardScaler");
-  const [encoder, setEncoder] = useState<string>("OneHotEncoder");
 
-  // Simple toggles for EDA and feature analysis
-  const [enableShowHead, setEnableShowHead] = useState(true);
-  const [enableDescribe, setEnableDescribe] = useState(true);
-  const [enableShowShape, setEnableShowShape] = useState(true);
-  const [enableCorrelation, setEnableCorrelation] = useState(true);
-  const [enableFeatureTypes, setEnableFeatureTypes] = useState(true);
-  const [enableTypeCorrection, setEnableTypeCorrection] = useState(true);
+  // --- Python-aligned choices ---
+  const [algorithm, setAlgorithm] = useState("random_forest"); // modeling template
+  const [scaler, setScaler] = useState<string>("standard");    // scaling template
+  const [encoder, setEncoder] = useState<string>("onehot");    // encoding template
+
+  // Simple toggles for EDA (map to template names under templates/eda)
+  const [enableShowHead, setEnableShowHead] = useState(true);              // "head"
+  const [enableDescribe, setEnableDescribe] = useState(true);              // "summary_stats"
+  const [enableShowShape, setEnableShowShape] = useState(true);            // "shape"
+  const [enableCorrelation, setEnableCorrelation] = useState(true);        // "correlation"
+  const [enableFeatureTypes, setEnableFeatureTypes] = useState(true);      // "numerical_vs_categorical"
+  const [enableTypeCorrection, setEnableTypeCorrection] = useState(true);  // "convert_objects"
+
+  // Cleaning options mapped directly to template names under templates/cleaning
+  const [selectedCleaningOptions, setSelectedCleaningOptions] = useState<string[]>([]);
 
   const cleaningOptions = [
-    "Handle missing values (imputation)",
-    "Normalize formats (dates, numbers, categories)",
-    "Remove duplicates",
-    "Detect and flag outliers",
-    "Basic feature engineering (derived columns)",
+    { key: "handle_missing", label: "Handle missing values (imputation)" },
+    { key: "normalize_formats", label: "Normalize formats (dates, numbers, categories)" },
+    { key: "remove_duplicates", label: "Remove duplicates" },
+    { key: "detect_outliers", label: "Detect and flag outliers" },
+    { key: "feature_engineering", label: "Basic feature engineering (derived columns)" },
   ];
 
-  const toggleCleaningOption = (option: string) => {
+  const toggleCleaningOption = (key: string) => {
     setSelectedCleaningOptions((prev) =>
-      prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
+      prev.includes(key) ? prev.filter((o) => o !== key) : [...prev, key]
     );
   };
 
@@ -48,97 +53,73 @@ export default function NewProject() {
   const progressPercent = (currentStep / 3) * 100;
   const isStepActive = (step: number) => currentStep >= step;
 
-  // --- Build payload in the exact shape Python expects ---
+  // --- Build userJson and send FormData to /api/pipeline ---
   const handleSave = async () => {
-    // Map UI cleaning options to CLEANING_TEMPLATES keys
-    const dataCleaning: any = {};
-
-    if (selectedCleaningOptions.includes("Remove duplicates")) {
-      dataCleaning.drop_duplicates = true; // CLEANING_TEMPLATES["drop_duplicates"]
+    if (!file) {
+      console.error("No file selected");
+      return;
     }
 
-    if (selectedCleaningOptions.includes("Handle missing values (imputation)")) {
-      // You can later expose mean/median/mode as a select.
-      dataCleaning.missing_strategy = "mean"; // → missing_strategy_mean
-    }
+    // 1) Build EDA list (templates/eda/<name>.py)
+    const eda: string[] = [];
+    if (enableShowHead) eda.push("head");
+    if (enableShowShape) eda.push("shape");
+    if (enableDescribe) eda.push("summary_stats");
+    if (enableCorrelation) eda.push("correlation");
+    if (enableFeatureTypes) eda.push("numerical_vs_categorical");
+    if (enableTypeCorrection) eda.push("convert_objects");
 
-    if (selectedCleaningOptions.includes("Detect and flag outliers")) {
-      // Choose IQR by default
-      dataCleaning.outlier_detection_iqr = true;
-    }
+    // 2) Cleaning list (already in template name form)
+    const cleaning: string[] = [...selectedCleaningOptions];
 
-    if (selectedCleaningOptions.includes("Basic feature engineering (derived columns)")) {
-      // Example: treat as skewness fix (you can change this later)
-      dataCleaning.fix_skewness_log = true;
-    }
+    // 3) Encoding (single-choice → array of one or empty)
+    const encoding: string[] = encoder ? [encoder] : [];
 
-    // FeatureAnalysis block for builder.py
-    const featureAnalysis = {
-      show_feature_types: enableFeatureTypes,
-      type_correction: enableTypeCorrection, // maps to detect_and_fix_object_numerics
+    // 4) Scaling (single-choice → array of one or empty)
+    const scaling: string[] = scaler ? [scaler] : [];
+
+    // 5) Modeling (single-choice → array of one or empty)
+    const modeling: string[] = algorithm ? [algorithm] : [];
+
+    const userJson = {
+      eda,
+      cleaning,
+      encoding,
+      scaling,
+      modeling,
     };
 
-    // EDA block – keys must match EDA_TEMPLATES
-    const eda = {
-      show_head: enableShowHead,
-      show_shape: enableShowShape,
-      info: true,
-      describe: enableDescribe,
-      null_values: true,
-      nan_values: false,
-      correlation: enableCorrelation,
-      skewness_test: true,
-    };
+    console.log("🔧 userJson for build_pipeline:", userJson);
 
-    // Visualization – simple defaults (can add UI later)
-    const visualization = {
-      histograms: true,
-      heatmap: true,
-      boxplots: false,
-      pairplot: false,
-    };
-
-    // Preprocessing – builder loops over values, not keys
-    const preprocessing: any = {};
-    if (scaler) {
-      preprocessing.scaler = scaler; // e.g. "StandardScaler"
-    }
-    if (encoder) {
-      preprocessing.encoder = encoder; // e.g. "OneHotEncoder"
+    // Map UI dataFormat -> file_type for Python
+    let fileType = "csv";
+    if (dataFormat === "excel") fileType = "xlsx";
+    else if (dataFormat === "json") {
+      // until you add JSON support in Python, keep as csv or adjust backend
+      fileType = "csv";
     }
 
-    // Model block – exactly what builder.py reads
-    const model = {
-      algorithm,
-      target: targetColumn,
-    };
-
-    const userInput = {
-      Project: {
-        name: projectName,
-        format: dataFormat,
-      },
-      FeatureAnalysis: featureAnalysis,
-      EDA: eda,
-      Visualization: visualization,
-      DataCleaning: dataCleaning,
-      Preprocessing: preprocessing,
-      Model: model,
-    };
-
-    // Send to your API route that calls builder.py
     try {
-      const res = await fetch("/api/automl", {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("config", JSON.stringify(userJson));
+      formData.append("file_type", fileType);
+      formData.append("target", targetColumn || "");
+
+      const res = await fetch("/api/pipeline", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userInput),
+        body: formData, // NO headers, browser sets multipart boundary
       });
 
       if (!res.ok) {
-        console.error("Failed to generate pipeline");
-      } else {
-        console.log("Pipeline config sent successfully");
+        const err = await res.json().catch(() => null);
+        console.error("Failed to run pipeline:", err || res.statusText);
+        return;
       }
+
+      const data = await res.json();
+      console.log("✅ Pipeline result from Python:", data); // { preview, columns }
+      // later: set state for preview table / navigate to results page
     } catch (e) {
       console.error(e);
     }
@@ -213,9 +194,11 @@ export default function NewProject() {
                       ? ".xlsx,.xls"
                       : ".json"
                   }
-                  onChange={(e) =>
-                    setFileSelected(!!e.target.files && e.target.files.length > 0)
-                  }
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setFile(f);
+                    setFileSelected(!!f);
+                  }}
                 />
               </div>
             </div>
@@ -242,10 +225,10 @@ export default function NewProject() {
                   onChange={(e) => setAlgorithm(e.target.value)}
                   className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-400"
                 >
-                  <option value="RandomForestClassifier">Random Forest</option>
-                  <option value="LogisticRegression">Logistic Regression</option>
-                  <option value="DecisionTreeClassifier">Decision Tree</option>
-                  <option value="XGBoost">XGBoost</option>
+                  <option value="">No model</option>
+                  <option value="random_forest">Random Forest</option>
+                  <option value="logistic_regression">Logistic Regression</option>
+                  <option value="xgboost">XGBoost</option>
                 </select>
               </div>
             </div>
@@ -331,7 +314,7 @@ export default function NewProject() {
                   </p>
                   <p className="text-xs text-slate-400">
                     Your selections shape the refinement pipeline and the generated
-                    AutoML script.
+                    Python script.
                   </p>
                 </div>
               </li>
@@ -346,8 +329,8 @@ export default function NewProject() {
               Exploratory analysis
             </h2>
             <p className="text-[0.7rem] text-slate-500 max-w-md">
-              Choose which quick diagnostic steps DataRefine should include in the
-              generated Python pipeline.
+              These checkboxes map directly to <code>eda</code> templates in the
+              Python pipeline.
             </p>
           </div>
 
@@ -359,7 +342,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableShowHead(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Show head of the dataset</span>
+              <span>Show head of the dataset (head)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -368,7 +351,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableShowShape(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Show shape (rows, columns)</span>
+              <span>Show shape (rows, columns) (shape)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -377,7 +360,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableDescribe(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Summary statistics (describe)</span>
+              <span>Summary statistics (summary_stats)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -386,7 +369,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableCorrelation(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Correlation matrix</span>
+              <span>Correlation matrix (correlation)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -395,7 +378,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableFeatureTypes(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Show numerical vs categorical columns</span>
+              <span>Show numerical vs categorical columns (numerical_vs_categorical)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -404,7 +387,7 @@ export default function NewProject() {
                 onChange={(e) => setEnableTypeCorrection(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
               />
-              <span>Try to convert object columns that look numeric</span>
+              <span>Try to convert object columns that look numeric (convert_objects)</span>
             </label>
           </div>
         </div>
@@ -416,24 +399,24 @@ export default function NewProject() {
               Data cleaning & preparation
             </h2>
             <p className="text-[0.7rem] text-slate-500 max-w-md">
-              Choose the operations you want this project to run. These map
-              directly to steps in the generated Python pipeline.
+              These options fill the <code>cleaning</code>, <code>encoding</code>, and{" "}
+              <code>scaling</code> sections for <code>build_pipeline</code>.
             </p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            {cleaningOptions.map((option) => (
+            {cleaningOptions.map((opt) => (
               <label
-                key={option}
+                key={opt.key}
                 className="flex items-start gap-2 text-xs md:text-sm text-slate-200 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  checked={selectedCleaningOptions.includes(option)}
-                  onChange={() => toggleCleaningOption(option)}
+                  checked={selectedCleaningOptions.includes(opt.key)}
+                  onChange={() => toggleCleaningOption(opt.key)}
                   className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-500"
                 />
-                <span>{option}</span>
+                <span>{opt.label}</span>
               </label>
             ))}
           </div>
@@ -441,7 +424,7 @@ export default function NewProject() {
           <div className="border-t border-slate-800/80 pt-4 mt-2 grid gap-4 md:grid-cols-2">
             <div>
               <label className="block text-xs text-slate-300 mb-1">
-                Scaling
+                Scaling (numeric features)
               </label>
               <select
                 value={scaler}
@@ -449,9 +432,8 @@ export default function NewProject() {
                 className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-400"
               >
                 <option value="">No scaling</option>
-                <option value="StandardScaler">StandardScaler</option>
-                <option value="MinMaxScaler">MinMaxScaler</option>
-                <option value="RobustScaler">RobustScaler</option>
+                <option value="standard">Standard scaler</option>
+                <option value="minmax">Min-max scaler</option>
               </select>
             </div>
             <div>
@@ -464,8 +446,8 @@ export default function NewProject() {
                 className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-400"
               >
                 <option value="">No encoding</option>
-                <option value="OneHotEncoder">OneHotEncoder</option>
-                <option value="LabelEncoder">LabelEncoder</option>
+                <option value="onehot">One-hot encoding</option>
+                <option value="ordinal">Ordinal encoding</option>
               </select>
             </div>
           </div>
