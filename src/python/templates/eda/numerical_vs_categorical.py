@@ -1,7 +1,12 @@
 NUM_VS_CAT = """
-numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+print("Numerical vs categorical columns:")
 
-print("Numeric columns:", numeric_cols)
-print("Categorical columns:", categorical_cols)
+numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+categorical_cols = df.select_dtypes(exclude=["number"]).columns.tolist()
+
+print("\\nNumeric columns:")
+print(numeric_cols)
+
+print("\\nCategorical columns:")
+print(categorical_cols)
 """

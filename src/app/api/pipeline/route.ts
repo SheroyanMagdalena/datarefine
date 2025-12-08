@@ -1,6 +1,8 @@
+// app/api/pipeline/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://localhost:8000";
+const PYTHON_API_URL =
+  process.env.PYTHON_API_URL || "http://localhost:8000";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,42 +10,60 @@ export async function POST(req: NextRequest) {
 
     const file = incomingFormData.get("file") as File | null;
     const config = incomingFormData.get("config") as string | null;
-    const fileType = (incomingFormData.get("fileType") as string) || "csv";
-    const target = (incomingFormData.get("target") as string) || "";
+    const file_type =
+      (incomingFormData.get("file_type") as string) || "csv";
+    const target =
+      (incomingFormData.get("target") as string) || "";
 
-    if (!file || !config) {
+    if (!file) {
       return NextResponse.json(
-        { error: "file and config are required" },
+        { error: "Missing file upload" },
         { status: 400 }
       );
     }
 
-    // Build FormData to forward to Python service
-    const fd = new FormData();
-    fd.set("config", config);
-    fd.set("fileType", fileType);
-    if (target) fd.set("target", target);
-    fd.set("file", file);
-
-    const res = await fetch(`${PYTHON_API_URL}/build-pipeline`, {
-      method: "POST",
-      body: fd,
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
+    if (!config) {
       return NextResponse.json(
-        { error: "Python service error", detail: text },
-        { status: 500 }
+        { error: "Missing pipeline config" },
+        { status: 400 }
       );
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    const fd = new FormData();
+    fd.set("file", file);
+    fd.set("config", config);
+    fd.set("file_type", file_type);
+    fd.set("target", target);
+
+    const pythonRes = await fetch(
+      `${PYTHON_API_URL}/build-pipeline`,
+      {
+        method: "POST",
+        body: fd,
+      }
+    );
+
+    if (!pythonRes.ok) {
+      const errorText = await pythonRes.text();
+      return NextResponse.json(
+        {
+          error: "Python service error",
+          detail: errorText,
+        },
+        { status: pythonRes.status }
+      );
+    }
+
+    const result = await pythonRes.json();
+    return NextResponse.json(result);
   } catch (err: any) {
-    console.error(err);
+    console.error("Pipeline API error:", err);
+
     return NextResponse.json(
-      { error: "Unexpected server error", detail: String(err) },
+      {
+        error: "Unexpected server error",
+        detail: String(err),
+      },
       { status: 500 }
     );
   }
