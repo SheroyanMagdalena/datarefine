@@ -8,7 +8,7 @@ export async function createOrUpdateUser(
   image_url,
   email_addresses,
   username,
-  //toDo projectName (default null)
+  projectName = null
 ) {
   await connect();
 
@@ -25,6 +25,7 @@ export async function createOrUpdateUser(
       avatar: image_url,
       email,
       username,
+      projectName
     },
     { new: true, upsert: true }
   );

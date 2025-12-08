@@ -27,9 +27,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    //toDo: project: {
-
-    // }
+    projectName: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
