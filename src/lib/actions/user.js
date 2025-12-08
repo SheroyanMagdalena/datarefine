@@ -7,7 +7,8 @@ export async function createOrUpdateUser(
   last_name,
   image_url,
   email_addresses,
-  username
+  username,
+  //toDo projectName (default null)
 ) {
   await connect();
 

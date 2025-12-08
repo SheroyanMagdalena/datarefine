@@ -477,6 +477,7 @@ export default function NewProject() {
               className="inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-400 px-5 py-2 text-sm font-medium text-white shadow-md shadow-sky-500/30 transition"
             >
               Save project & generate pipeline
+              //toDO: update user and add project name to db
             </button>
           </div>
         </div>
