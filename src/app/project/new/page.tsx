@@ -532,7 +532,7 @@ export default function NewProject() {
           <div className="flex justify-end pt-2 gap-3">
             <button
               type="button"
-              onClick={() => window.open("http://localhost:8000/download-report", "_blank")}
+              onClick={() => window.open("https://datarefine-python.onrender.com/download-report", "_blank")}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
             >
               Download Report

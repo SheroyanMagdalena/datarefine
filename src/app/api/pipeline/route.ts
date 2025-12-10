@@ -1,7 +1,7 @@
 // app/api/pipeline/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const PYTHON_API_URL = "http://localhost:8000";
+const PYTHON_API_URL = "https://datarefine-python.onrender.com";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     fd.append("file_type", file_type);
     fd.append("target", target);
 
-    const url = "http://localhost:8000/build-pipeline";
+    const url = "https://datarefine-python.onrender.com/build-pipeline";
     console.log("Calling Python backend at:", url);
 
     // 3) Forward request to Python API
