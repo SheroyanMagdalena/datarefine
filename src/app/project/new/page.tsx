@@ -1,5 +1,6 @@
 "use client";
 
+import { UnrecognizedActionError } from "next/dist/client/components/unrecognized-action-error";
 import React, { useState } from "react";
 
 export default function NewProject() {
@@ -109,15 +110,37 @@ export default function NewProject() {
     // 5) Modeling (single-choice -> array of one or empty)
     const modeling: string[] = algorithm ? [algorithm] : [];
 
+    // 🔁 NEW: build a single steps[] array to match Python build_pipeline
+    type StepConfig = { module: string; function: string };
+
+    const steps: StepConfig[] = [];
+
+    // Order: cleaning -> eda -> encoding -> scaling -> modeling
+    cleaning.forEach((fn) => {
+      steps.push({ module: "cleaning", function: fn });
+    });
+
+    eda.forEach((fn) => {
+      steps.push({ module: "eda", function: fn });
+    });
+
+    encoding.forEach((fn) => {
+      steps.push({ module: "encoding", function: fn });
+    });
+
+    scaling.forEach((fn) => {
+      steps.push({ module: "scaling", function: fn });
+    });
+
+    modeling.forEach((fn) => {
+      steps.push({ module: "modeling", function: fn });
+    });
+
     const userJson = {
-      eda,
-      cleaning,
-      encoding,
-      scaling,
-      modeling,
+      steps,
     };
 
-    console.log("🔧 userJson for build_pipeline:", userJson);
+    console.log("🔧 userJson for build_pipeline (steps array):", userJson);
 
     try {
       setLoading(true);
@@ -453,8 +476,8 @@ export default function NewProject() {
               Data cleaning & preparation
             </h2>
             <p className="text-[0.7rem] text-slate-500 max-w-md">
-              These options fill the <code>cleaning</code>, <code>encoding</code>, and{" "}
-              <code>scaling</code> sections for <code>build_pipeline</code>.
+              These options fill the cleaning, encoding, and scaling steps for{" "}
+              <code>build_pipeline</code>.
             </p>
           </div>
 
@@ -506,7 +529,15 @@ export default function NewProject() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end pt-2 gap-3">
+            <button
+              type="button"
+              onClick={() => window.open("http://localhost:8000/download-report", "_blank")}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+            >
+              Download Report
+            </button>
+
             <button
               type="button"
               onClick={handleSave}
