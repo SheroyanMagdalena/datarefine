@@ -1,7 +1,6 @@
 "use client";
 
-import { UnrecognizedActionError } from "next/dist/client/components/unrecognized-action-error";
-import React, { useState } from "react";
+import React, {useState} from "react";
 
 export default function NewProject() {
   const [dataFormat, setDataFormat] = useState("csv");
@@ -10,12 +9,10 @@ export default function NewProject() {
   const [file, setFile] = useState<File | null>(null);
   const [targetColumn, setTargetColumn] = useState("");
 
-  // Python-aligned choices
   const [algorithm, setAlgorithm] = useState("random_forest"); // modeling template
   const [scaler, setScaler] = useState<string>("standard");    // scaling template
   const [encoder, setEncoder] = useState<string>("onehot");    // encoding template
 
-  // EDA toggles -> templates/eda/<name>.py
   const [enableShowHead, setEnableShowHead] = useState(true);              // "head"
   const [enableDescribe, setEnableDescribe] = useState(true);              // "summary_stats"
   const [enableShowShape, setEnableShowShape] = useState(true);            // "shape"
@@ -23,7 +20,6 @@ export default function NewProject() {
   const [enableFeatureTypes, setEnableFeatureTypes] = useState(true);      // "numerical_vs_categorical"
   const [enableTypeCorrection, setEnableTypeCorrection] = useState(true);  // "convert_objects"
 
-  // Cleaning options -> templates/cleaning/<key>.py
   const [selectedCleaningOptions, setSelectedCleaningOptions] = useState<string[]>([]);
 
   const cleaningOptions = [
@@ -40,13 +36,11 @@ export default function NewProject() {
     );
   };
 
-  // Backend response preview
   const [preview, setPreview] = useState<any[] | null>(null);
   const [columns, setColumns] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Progress logic ---
   let currentStep = 1;
   if ((projectName || fileSelected) && !(projectName && fileSelected)) {
     currentStep = 1;
@@ -60,7 +54,6 @@ export default function NewProject() {
   const progressPercent = (currentStep / 3) * 100;
   const isStepActive = (step: number) => currentStep >= step;
 
-  // --- Call /api/pipeline which proxies to FastAPI /build-pipeline ---
   const handleSave = async () => {
     setError(null);
     setPreview(null);
@@ -76,20 +69,16 @@ export default function NewProject() {
       return;
     }
 
-    // Map UI dataFormat -> file_type for Python (builder.py)
-    // Supported by backend: "csv", "xls", "xlsx"
     let fileType: string;
     if (dataFormat === "csv") {
       fileType = "csv";
     } else if (dataFormat === "excel") {
       fileType = "xlsx";
     } else {
-      // JSON is not supported by backend yet
       setError("JSON files are not supported yet. Please use CSV or Excel.");
       return;
     }
 
-    // 1) Build EDA list
     const eda: string[] = [];
     if (enableShowHead) eda.push("head");
     if (enableShowShape) eda.push("shape");
@@ -98,24 +87,18 @@ export default function NewProject() {
     if (enableFeatureTypes) eda.push("numerical_vs_categorical");
     if (enableTypeCorrection) eda.push("convert_objects");
 
-    // 2) Cleaning list (already template names)
     const cleaning: string[] = [...selectedCleaningOptions];
 
-    // 3) Encoding (single-choice -> array of one or empty)
     const encoding: string[] = encoder ? [encoder] : [];
 
-    // 4) Scaling (single-choice -> array of one or empty)
     const scaling: string[] = scaler ? [scaler] : [];
 
-    // 5) Modeling (single-choice -> array of one or empty)
     const modeling: string[] = algorithm ? [algorithm] : [];
 
-    // 🔁 NEW: build a single steps[] array to match Python build_pipeline
     type StepConfig = { module: string; function: string };
 
     const steps: StepConfig[] = [];
 
-    // Order: cleaning -> eda -> encoding -> scaling -> modeling
     cleaning.forEach((fn) => {
       steps.push({ module: "cleaning", function: fn });
     });
@@ -148,8 +131,8 @@ export default function NewProject() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("config", JSON.stringify(userJson));
-      formData.append("file_type", fileType);         // matches main.py Form("csv")
-      formData.append("target", targetColumn || "");  // Optional[str] in backend
+      formData.append("file_type", fileType);
+      formData.append("target", targetColumn || "");
 
       const res = await fetch("/api/pipeline", {
         method: "POST",
@@ -157,7 +140,6 @@ export default function NewProject() {
       });
 
       if (!res.ok) {
-        // Try to decode JSON error from backend
         let message = `Pipeline request failed with status ${res.status}`;
         try {
           const errBody = await res.json();
@@ -167,14 +149,14 @@ export default function NewProject() {
             }`;
           }
         } catch {
-          // ignore JSON parse error
+          // ignoring JSON parse error
         }
         setError(message);
         return;
       }
 
       const data = await res.json();
-      console.log("✅ Pipeline result from Python:", data);
+      console.log("Pipeline result from Python: ", data);
 
       setPreview(data.preview || []);
       setColumns(data.columns || []);
@@ -242,7 +224,7 @@ export default function NewProject() {
                 >
                   <option value="csv">CSV</option>
                   <option value="excel">Excel (.xlsx, .xls)</option>
-                  {/* JSON disabled until backend supports it */}
+                  {}
                   <option value="json" disabled>
                     JSON (coming soon)
                   </option>

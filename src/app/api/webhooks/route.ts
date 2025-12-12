@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     console.log(`Received webhook type: ${eventType}`);
     console.log("Payload:", event.data);
 
-    // Handle created or updated user
     if (eventType === "user.created" || eventType === "user.updated") {
       const {
         id,
@@ -46,7 +45,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle deleting user
     if (eventType === "user.deleted") {
       try {
         await deleteUser(event.data.id);
@@ -64,7 +62,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If event is something else…
     return NextResponse.json(
       { message: "Webhook received (ignored event type)" },
       { status: 200 }
